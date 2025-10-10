@@ -20,11 +20,12 @@ public class JWTUtil {
     private static final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
 
     // Generate JWT token
-    public String generateToken(String username, long expiryMinutes) {
+    public String generateToken(String username) {
+        long fiveHoursMs = 5L * 60 * 60 * 1000;
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiryMinutes * 60 * 1000))
+                .setExpiration(new Date(System.currentTimeMillis() + fiveHoursMs))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }

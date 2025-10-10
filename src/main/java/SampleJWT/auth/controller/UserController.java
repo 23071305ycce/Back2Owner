@@ -7,8 +7,11 @@ import SampleJWT.auth.dto.UserUpdateDTO;
 import SampleJWT.auth.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping
@@ -68,5 +71,18 @@ public class UserController {
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body("Forbidden");
         }
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<List<UserDTO>> listUsers() {
+        List<UserDTO> users = authService.listAllUsers();
+        return ResponseEntity.ok(users);
+    }
+
+    @PatchMapping("/users/{id}/role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestParam String role) {
+        authService.updateUserRole(id, role);
+        return ResponseEntity.ok("Role updated");
     }
 }

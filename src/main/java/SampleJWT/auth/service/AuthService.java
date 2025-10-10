@@ -15,7 +15,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -59,7 +61,7 @@ public class AuthService {
             );
 
             if (authentication.isAuthenticated()) {
-                return jwtUtil.generateToken(loginDTO.getUsername(), 15);
+                return jwtUtil.generateToken(loginDTO.getUsername());
             } else {
                 return "Invalid login attempt!";
             }
@@ -120,5 +122,29 @@ public class AuthService {
                 user.getUsername(),
                 user.getRole()
         );
+    }
+
+    public List<UserDTO> listAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(u -> new UserDTO(
+                        u.getId(),
+                        u.getFirstname(),
+                        u.getLastname(),
+                        u.getEmail(),
+                        u.getUsername(),
+                        u.getRole()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    public void updateUserRole(Long id, String role) {
+        if (!"ROLE_ADMIN".equals(role) && !"ROLE_USER".equals(role)) {
+            throw new IllegalArgumentException("Invalid role");
+        }
+        User user = userRepository.findById(id.intValue())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.setRole(role);
+        userRepository.save(user);
     }
 }
