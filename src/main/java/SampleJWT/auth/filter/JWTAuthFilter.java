@@ -1,49 +1,64 @@
 package SampleJWT.auth.filter;
 
-import SampleJWT.auth.dto.LoginDTO;
 import SampleJWT.auth.util.JWTUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 
 public class JWTAuthFilter extends OncePerRequestFilter {
-    private final AuthenticationManager authenticationManager;
-    private final JWTUtil jwtUtil;
 
-    public JWTAuthFilter(AuthenticationManager authenticationManager, JWTUtil jwtUtil) {
-        this.authenticationManager = authenticationManager;
+    private final JWTUtil jwtUtil;
+    private final UserDetailsService userDetailsService;
+
+    public JWTAuthFilter(JWTUtil jwtUtil, UserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
+        this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        // Public endpoints only; all others will be filtered
+        return path.equals("/login") || path.equals("/register") || path.equals("/session-expired")
+                || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+                                    FilterChain chain) throws ServletException, IOException {
 
-        if(!request.getServletPath().equals("/generate-token")){
-            filterChain.doFilter(request,response);
-            return ;
+        try {
+            String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+            if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
+                String token = header.substring(7);
+                String username = jwtUtil.extractUsername(token); // must exist in JWTUtil
+                if (username != null
+                        && SecurityContextHolder.getContext().getAuthentication() == null
+                        && jwtUtil.validateToken(token, username)) { // must exist in JWTUtil
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities());
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
+            }
+        } catch (Exception ex) {
+            // On any parsing/validation error, do not authenticate; let entry point handle 401
+            SecurityContextHolder.clearContext();
         }
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        LoginDTO loginDTO = objectMapper.readValue(request.getInputStream(), LoginDTO.class);
-
-        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(loginDTO.getUsername(),loginDTO.getPassword());
-
-        Authentication authResult = authenticationManager.authenticate(authToken);
-
-        if(authResult.isAuthenticated()){
-            String token = jwtUtil.generateToken(authResult.getName(), 15);
-            response.setHeader("Authorization", "Bearer" + token);
-        }
-
+        chain.doFilter(request, response);
     }
 }

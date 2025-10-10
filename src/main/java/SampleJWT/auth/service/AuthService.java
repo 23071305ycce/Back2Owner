@@ -2,15 +2,20 @@ package SampleJWT.auth.service;
 
 import SampleJWT.auth.dto.LoginDTO;
 import SampleJWT.auth.dto.RegisterDTO;
+import SampleJWT.auth.dto.UserDTO;
+import SampleJWT.auth.dto.UserUpdateDTO;
 import SampleJWT.auth.entity.User;
 import SampleJWT.auth.repository.UserRepository;
 import SampleJWT.auth.util.JWTUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 public class AuthService {
@@ -27,7 +32,6 @@ public class AuthService {
     @Autowired
     private JWTUtil jwtUtil;
 
-    // ✅ Register new user
     public String registerUser(RegisterDTO registerDTO) {
         if (userRepository.findByUsername(registerDTO.getUsername()).isPresent()) {
             return "Username already exists!";
@@ -45,7 +49,6 @@ public class AuthService {
         return "User registered successfully!";
     }
 
-    // ✅ Login user and return JWT token
     public String loginUser(LoginDTO loginDTO) {
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -56,7 +59,6 @@ public class AuthService {
             );
 
             if (authentication.isAuthenticated()) {
-                // Token valid for 15 minutes
                 return jwtUtil.generateToken(loginDTO.getUsername(), 15);
             } else {
                 return "Invalid login attempt!";
@@ -64,5 +66,59 @@ public class AuthService {
         } catch (Exception e) {
             return "Invalid username or password!";
         }
+    }
+
+    public UserDTO getUserById(Long id) {
+        Optional<User> userOpt = userRepository.findById(id.intValue());
+        if (userOpt.isEmpty()) {
+            return null;
+        }
+        User user = userOpt.get();
+        return new UserDTO(
+                user.getId(),
+                user.getFirstname(),
+                user.getLastname(),
+                user.getEmail(),
+                user.getUsername(),
+                user.getRole()
+        );
+    }
+
+    public UserDTO updateUser(Long id, UserUpdateDTO dto, String requesterUsername) {
+        User user = userRepository.findById(id.intValue())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.getUsername().equals(requesterUsername)) {
+            throw new AccessDeniedException("Not allowed to update this user");
+        }
+
+        if (dto.getFirstname() != null) user.setFirstname(dto.getFirstname());
+        if (dto.getLastname() != null) user.setLastname(dto.getLastname());
+
+        if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
+            if (userRepository.existsByEmail(dto.getEmail())) {
+                throw new IllegalArgumentException("Email already in use");
+            }
+            user.setEmail(dto.getEmail());
+        }
+
+        // Keep this block only if username is allowed to change
+        if (dto.getUsername() != null && !dto.getUsername().equals(user.getUsername())) {
+            if (userRepository.existsByUsername(dto.getUsername())) {
+                throw new IllegalArgumentException("Username already in use");
+            }
+            user.setUsername(dto.getUsername());
+        }
+
+        userRepository.save(user);
+
+        return new UserDTO(
+                user.getId(),
+                user.getFirstname(),
+                user.getLastname(),
+                user.getEmail(),
+                user.getUsername(),
+                user.getRole()
+        );
     }
 }

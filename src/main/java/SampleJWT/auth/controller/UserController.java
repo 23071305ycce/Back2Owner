@@ -2,9 +2,12 @@ package SampleJWT.auth.controller;
 
 import SampleJWT.auth.dto.LoginDTO;
 import SampleJWT.auth.dto.RegisterDTO;
+import SampleJWT.auth.dto.UserDTO;
+import SampleJWT.auth.dto.UserUpdateDTO;
 import SampleJWT.auth.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,5 +41,32 @@ public class UserController {
     @GetMapping("/session-expired")
     public ResponseEntity<String> sessionExpired() {
         return ResponseEntity.status(401).body("Session expired! Please login again.");
+    }
+
+    @GetMapping("/users/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable Long id) {
+        UserDTO userDTO = authService.getUserById(id);
+        if (userDTO == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(userDTO);
+    }
+
+    @PutMapping("/users/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id,
+                                        @RequestBody UserUpdateDTO updateDTO,
+                                        Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+        String requester = authentication.getName();
+        try {
+            UserDTO updated = authService.updateUser(id, updateDTO, requester);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (org.springframework.security.access.AccessDeniedException ex) {
+            return ResponseEntity.status(403).body("Forbidden");
+        }
     }
 }
