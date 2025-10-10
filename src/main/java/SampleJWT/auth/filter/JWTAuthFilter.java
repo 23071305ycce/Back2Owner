@@ -1,7 +1,12 @@
 package SampleJWT.auth.filter;
 
 import SampleJWT.auth.util.JWTUtil;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -9,10 +14,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 
 public class JWTAuthFilter extends OncePerRequestFilter {
@@ -26,36 +28,57 @@ public class JWTAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         String path = request.getServletPath();
-        // Public endpoints only; all others will be filtered
-        return path.equals("/login") || path.equals("/register") || path.equals("/session-expired")
-                || "OPTIONS".equalsIgnoreCase(request.getMethod());
+        String method = request.getMethod();
+
+        // Public endpoints (no JWT parsing)
+        if ("/login".equals(path) || "/register".equals(path) || "/session-expired".equals(path) || "/error".equals(path)) {
+            return true;
+        }
+
+        // Public browsing for items: skip JWT parsing on all GET /items** requests
+        if ("GET".equalsIgnoreCase(method) && path.startsWith("/items")) {
+            return true;
+        }
+
+        // Always skip CORS preflight
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
+
+        return false;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain chain) throws ServletException, IOException {
 
         try {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+
             if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
                 String token = header.substring(7);
-                String username = jwtUtil.extractUsername(token); // must exist in JWTUtil
+                String username = jwtUtil.extractUsername(token);
+
                 if (username != null
                         && SecurityContextHolder.getContext().getAuthentication() == null
-                        && jwtUtil.validateToken(token, username)) { // must exist in JWTUtil
+                        && jwtUtil.validateToken(token, username)) {
+
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    UsernamePasswordAuthenticationToken auth =
+
+                    UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, null, userDetails.getAuthorities());
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
+            // If no/invalid token, proceed; Security config decides access.
         } catch (Exception ex) {
-            // On any parsing/validation error, do not authenticate; let entry point handle 401
+            // On parsing/validation error, clear context and continue; entry point handles secured paths.
             SecurityContextHolder.clearContext();
         }
 

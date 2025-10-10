@@ -85,4 +85,22 @@ public class UserController {
         authService.updateUserRole(id, role);
         return ResponseEntity.ok("Role updated");
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+        String username = authentication.getName();
+        try {
+            UserDTO userDTO = authService.getUserByUsername(username);
+            if (userDTO == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(userDTO);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Failed to fetch user");
+        }
+    }
+
 }

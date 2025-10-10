@@ -77,7 +77,7 @@ public class AuthService {
         }
         User user = userOpt.get();
         return new UserDTO(
-                user.getId(),
+                (int) user.getId(),
                 user.getFirstname(),
                 user.getLastname(),
                 user.getEmail(),
@@ -115,7 +115,7 @@ public class AuthService {
         userRepository.save(user);
 
         return new UserDTO(
-                user.getId(),
+                (int) user.getId(),
                 user.getFirstname(),
                 user.getLastname(),
                 user.getEmail(),
@@ -128,7 +128,7 @@ public class AuthService {
         return userRepository.findAll()
                 .stream()
                 .map(u -> new UserDTO(
-                        u.getId(),
+                        (int) u.getId(),
                         u.getFirstname(),
                         u.getLastname(),
                         u.getEmail(),
@@ -147,4 +147,19 @@ public class AuthService {
         user.setRole(role);
         userRepository.save(user);
     }
+
+    public UserDTO getUserByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        return new UserDTO(
+                (int) user.getId(),
+                user.getFirstname(),
+                user.getLastname(),
+                user.getEmail(),
+                user.getUsername(),
+                user.getRole()
+        );
+    }
+
 }
