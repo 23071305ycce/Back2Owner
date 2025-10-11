@@ -34,11 +34,14 @@ public class AuthService {
     @Autowired
     private JWTUtil jwtUtil;
 
+                            //<- USER SERVICES ->//
+    //for /register
     public String registerUser(RegisterDTO registerDTO) {
         if (userRepository.findByUsername(registerDTO.getUsername()).isPresent()) {
             return "Username already exists!";
         }
 
+        //mapping :- RegisterDTO to User
         User newUser = new User();
         newUser.setFirstname(registerDTO.getFirstname());
         newUser.setLastname(registerDTO.getLastname());
@@ -51,6 +54,7 @@ public class AuthService {
         return "User registered successfully!";
     }
 
+    //for /login
     public String loginUser(LoginDTO loginDTO) {
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -70,6 +74,7 @@ public class AuthService {
         }
     }
 
+    //for /users/{id}
     public UserDTO getUserById(Long id) {
         Optional<User> userOpt = userRepository.findById(id.intValue());
         if (userOpt.isEmpty()) {
@@ -86,6 +91,7 @@ public class AuthService {
         );
     }
 
+    //update the user
     public UserDTO updateUser(Long id, UserUpdateDTO dto, String requesterUsername) {
         User user = userRepository.findById(id.intValue())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -97,7 +103,9 @@ public class AuthService {
         if (dto.getFirstname() != null) user.setFirstname(dto.getFirstname());
         if (dto.getLastname() != null) user.setLastname(dto.getLastname());
 
+        //valid mail && is the current email different
         if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
+            //does the new mail already exits in the repo
             if (userRepository.existsByEmail(dto.getEmail())) {
                 throw new IllegalArgumentException("Email already in use");
             }
@@ -124,30 +132,7 @@ public class AuthService {
         );
     }
 
-    public List<UserDTO> listAllUsers() {
-        return userRepository.findAll()
-                .stream()
-                .map(u -> new UserDTO(
-                        (int) u.getId(),
-                        u.getFirstname(),
-                        u.getLastname(),
-                        u.getEmail(),
-                        u.getUsername(),
-                        u.getRole()
-                ))
-                .collect(Collectors.toList());
-    }
-
-    public void updateUserRole(Long id, String role) {
-        if (!"ROLE_ADMIN".equals(role) && !"ROLE_USER".equals(role)) {
-            throw new IllegalArgumentException("Invalid role");
-        }
-        User user = userRepository.findById(id.intValue())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        user.setRole(role);
-        userRepository.save(user);
-    }
-
+    // for /me
     public UserDTO getUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -162,4 +147,30 @@ public class AuthService {
         );
     }
 
+                            //<- ADMIN SERVICES ->//
+    // for /users
+    public List<UserDTO> listAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(u -> new UserDTO(
+                        (int) u.getId(),
+                        u.getFirstname(),
+                        u.getLastname(),
+                        u.getEmail(),
+                        u.getUsername(),
+                        u.getRole()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    //to convert user's role to admin
+    public void updateUserRole(Long id, String role) {
+        if (!"ROLE_ADMIN".equals(role) && !"ROLE_USER".equals(role)) {
+            throw new IllegalArgumentException("Invalid role");
+        }
+        User user = userRepository.findById(id.intValue())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.setRole(role);
+        userRepository.save(user);
+    }
 }

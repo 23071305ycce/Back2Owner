@@ -20,6 +20,8 @@ public class UserController {
     @Autowired
     private AuthService authService;
 
+                        //<- USER ROLE ->//
+    //User Register
     @PostMapping("/register")
     public ResponseEntity<String> registerUser(@RequestBody RegisterDTO registerDTO) {
         String response = authService.registerUser(registerDTO);
@@ -30,6 +32,7 @@ public class UserController {
         }
     }
 
+    //User Login
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody LoginDTO loginDTO) {
         String token = authService.loginUser(loginDTO);
@@ -41,11 +44,13 @@ public class UserController {
                 .body("Login successful! Token: " + token + "\nExpires in 15 minutes");
     }
 
+    //if the users jwt token expires
     @GetMapping("/session-expired")
     public ResponseEntity<String> sessionExpired() {
         return ResponseEntity.status(401).body("Session expired! Please login again.");
     }
 
+    //Get user by id
     @GetMapping("/users/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Long id) {
         UserDTO userDTO = authService.getUserById(id);
@@ -55,6 +60,7 @@ public class UserController {
         return ResponseEntity.ok(userDTO);
     }
 
+    //update the user deatils
     @PutMapping("/users/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id,
                                         @RequestBody UserUpdateDTO updateDTO,
@@ -71,19 +77,6 @@ public class UserController {
         } catch (org.springframework.security.access.AccessDeniedException ex) {
             return ResponseEntity.status(403).body("Forbidden");
         }
-    }
-
-    @GetMapping("/users")
-    public ResponseEntity<List<UserDTO>> listUsers() {
-        List<UserDTO> users = authService.listAllUsers();
-        return ResponseEntity.ok(users);
-    }
-
-    @PatchMapping("/users/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestParam String role) {
-        authService.updateUserRole(id, role);
-        return ResponseEntity.ok("Role updated");
     }
 
     @GetMapping("/me")
@@ -103,4 +96,18 @@ public class UserController {
         }
     }
 
+                            //<- ADMIN ROLE ->//
+    //get all user
+    @GetMapping("/users")
+    public ResponseEntity<List<UserDTO>> listUsers() {
+        List<UserDTO> users = authService.listAllUsers();
+        return ResponseEntity.ok(users);
+    }
+
+    //update any user's role
+    @PatchMapping("/users/{id}/role")
+    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestParam String role) {
+        authService.updateUserRole(id, role);
+        return ResponseEntity.ok("Role updated");
+    }
 }
