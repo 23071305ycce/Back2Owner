@@ -14,8 +14,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     List<Item> getAll();
 
     // Get all items (lost + found) reported by a user
-    List<Item> findByReporterId(Long reporterId);
+    List<Item> findByReporterId(String reporterId);
 
     // Get only lost items reported by a user
-    List<Item> findByReporterIdAndType(Long reporterId, String type);
+    List<Item> findByReporterIdAndType(String reporterId, String type);
 }

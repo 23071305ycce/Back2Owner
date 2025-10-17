@@ -34,15 +34,32 @@ public class AuthService {
     @Autowired
     private JWTUtil jwtUtil;
 
-                            //<- USER SERVICES ->//
-    //for /register
+    // <- USER SERVICES ->
+    // for /register
     public String registerUser(RegisterDTO registerDTO) {
+        // Validate collegeId is not null or empty
+        if (registerDTO.getCollegeId() == null || registerDTO.getCollegeId().trim().isEmpty()) {
+            throw new IllegalArgumentException("College ID is required");
+        }
+
+        // Check if college ID already exists
+        if (userRepository.existsById(registerDTO.getCollegeId())) {
+            throw new RuntimeException("College ID already registered");
+        }
+
+        // Check if username already exists
         if (userRepository.findByUsername(registerDTO.getUsername()).isPresent()) {
             return "Username already exists!";
         }
 
-        //mapping :- RegisterDTO to User
+        // Check if email already exists
+        if (userRepository.findByEmail(registerDTO.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already registered");
+        }
+
+        // Mapping: RegisterDTO to User
         User newUser = new User();
+        newUser.setCollegeId(registerDTO.getCollegeId());
         newUser.setFirstname(registerDTO.getFirstname());
         newUser.setLastname(registerDTO.getLastname());
         newUser.setEmail(registerDTO.getEmail());
@@ -54,7 +71,7 @@ public class AuthService {
         return "User registered successfully!";
     }
 
-    //for /login
+    // for /login
     public String loginUser(LoginDTO loginDTO) {
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -74,15 +91,15 @@ public class AuthService {
         }
     }
 
-    //for /users/{id}
-    public UserDTO getUserById(Long id) {
-        Optional<User> userOpt = userRepository.findById(id.intValue());
+    // for /users/{id}
+    public UserDTO getUserById(String id) {
+        Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
             return null;
         }
         User user = userOpt.get();
         return new UserDTO(
-                (int) user.getId(),
+                user.getCollegeId(),
                 user.getFirstname(),
                 user.getLastname(),
                 user.getEmail(),
@@ -91,9 +108,9 @@ public class AuthService {
         );
     }
 
-    //update the user
-    public UserDTO updateUser(Long id, UserUpdateDTO dto, String requesterUsername) {
-        User user = userRepository.findById(id.intValue())
+    // update the user
+    public UserDTO updateUser(String id, UserUpdateDTO dto, String requesterUsername) {
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if (!user.getUsername().equals(requesterUsername)) {
@@ -103,9 +120,9 @@ public class AuthService {
         if (dto.getFirstname() != null) user.setFirstname(dto.getFirstname());
         if (dto.getLastname() != null) user.setLastname(dto.getLastname());
 
-        //valid mail && is the current email different
+        // valid mail && is the current email different
         if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
-            //does the new mail already exits in the repo
+            // does the new mail already exist in the repo
             if (userRepository.existsByEmail(dto.getEmail())) {
                 throw new IllegalArgumentException("Email already in use");
             }
@@ -123,7 +140,7 @@ public class AuthService {
         userRepository.save(user);
 
         return new UserDTO(
-                (int) user.getId(),
+                user.getCollegeId(),
                 user.getFirstname(),
                 user.getLastname(),
                 user.getEmail(),
@@ -138,7 +155,7 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         return new UserDTO(
-                (int) user.getId(),
+                user.getCollegeId(),
                 user.getFirstname(),
                 user.getLastname(),
                 user.getEmail(),
@@ -147,13 +164,13 @@ public class AuthService {
         );
     }
 
-                            //<- ADMIN SERVICES ->//
+    // <- ADMIN SERVICES ->
     // for /users
     public List<UserDTO> listAllUsers() {
         return userRepository.findAll()
                 .stream()
                 .map(u -> new UserDTO(
-                        (int) u.getId(),
+                        u.getCollegeId(),
                         u.getFirstname(),
                         u.getLastname(),
                         u.getEmail(),
@@ -163,12 +180,12 @@ public class AuthService {
                 .collect(Collectors.toList());
     }
 
-    //to convert user's role to admin
-    public void updateUserRole(Long id, String role) {
+    // to convert user's role to admin
+    public void updateUserRole(String id, String role) {
         if (!"ROLE_ADMIN".equals(role) && !"ROLE_USER".equals(role)) {
             throw new IllegalArgumentException("Invalid role");
         }
-        User user = userRepository.findById(id.intValue())
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         user.setRole(role);
         userRepository.save(user);

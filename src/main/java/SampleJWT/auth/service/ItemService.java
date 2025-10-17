@@ -27,7 +27,7 @@ public class ItemService {
 
 
     //Add lost item : /items/lost
-    public Item createLostItem(Long reporterId,Item item) {
+    public Item createLostItem(String reporterId,Item item) {
         Item createdItem = buildBaseItem(
                 reporterId,
                 item.getTitle(),
@@ -42,7 +42,7 @@ public class ItemService {
     }
 
     //Add found item : /items/found
-    public Item createFoundItem(Long reporterId, Item body) {
+    public Item createFoundItem(String reporterId, Item body) {
         Item createdItem = buildBaseItem(
                 reporterId,
                 body.getTitle(),
@@ -78,7 +78,7 @@ public class ItemService {
     }
 
     // Update item (either owner or admin)
-    public Item updateWithOwnershipOrAdmin(Long id, Long userId, boolean isAdmin, Item updates) {
+    public Item updateWithOwnershipOrAdmin(Long id, String userId, boolean isAdmin, Item updates) {
         Item existing = get(id);
 
         if (!isAdmin && !existing.getReporterId().equals(userId)) {
@@ -99,7 +99,7 @@ public class ItemService {
     }
 
     // Delete item (either owner or admin)
-    public void deleteWithOwnershipOrAdmin(Long id, Long userId, boolean isAdmin) {
+    public void deleteWithOwnershipOrAdmin(Long id, String userId, boolean isAdmin) {
         Item existing = get(id);
 
         if (!isAdmin && !existing.getReporterId().equals(userId)) {
@@ -110,7 +110,7 @@ public class ItemService {
     }
 
     // Mark item as returned/closed
-    public Item markReturned(Long id, Long userId) {
+    public Item markReturned(Long id, String userId) {
         Item existing = get(id);
 
         if (!existing.getReporterId().equals(userId)) {
@@ -137,22 +137,22 @@ public class ItemService {
     }
 
     // Get all items by userId
-    public List<Item> getAllItemsByUserId(Long userId) {
+    public List<Item> getAllItemsByUserId(String userId) {
         return itemRepository.findByReporterId(userId);
     }
 
     // Get all lost items by userId
-    public List<Item> getLostItemsByUserId(Long userId) {
+    public List<Item> getLostItemsByUserId(String userId) {
         return itemRepository.findByReporterIdAndType(userId, "LOST");
     }
 
     // Get all found items by userId
-    public List<Item> getFoundItemsByUserId(Long userId) {
+    public List<Item> getFoundItemsByUserId(String userId) {
         return itemRepository.findByReporterIdAndType(userId, "FOUND");
     }
 
     // Helper method to build base item
-    private Item buildBaseItem(Long reporterId,
+    private Item buildBaseItem(String reporterId,
                                String title,
                                String description,
                                String category,

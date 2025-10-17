@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
 @RestController
 @RequestMapping("/items")
 public class ItemController {
@@ -26,40 +25,40 @@ public class ItemController {
         this.userRepository = userRepository;
     }
 
-    //FURTHER USE : CONVERT AUTH TO ID
-    private Long getUserIdFromAuth(Authentication auth) {
+    // FURTHER USE: CONVERT AUTH TO ID
+    private String getUserIdFromAuth(Authentication auth) {
         if (auth == null) {
             throw new RuntimeException("Unauthorized");
         }
         String username = auth.getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return user.getId();
+        return user.getCollegeId();
     }
 
-    //FURTHER USE: CHECK IF AUTH IS ADMIN
+    // FURTHER USE: CHECK IF AUTH IS ADMIN
     private boolean isAdmin(Authentication auth) {
         return auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
-    //REPORT A LOST ITEM
+    // REPORT A LOST ITEM
     @PostMapping(value = "/lost", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public Item reportLost(Authentication auth, @RequestBody Item item) {
-        Long userId = getUserIdFromAuth(auth);
-        return service.createLostItem( userId, item);
+        String userId = getUserIdFromAuth(auth);
+        return service.createLostItem(userId, item);
     }
 
-    //REPORT A FOUND ITEM
+    // REPORT A FOUND ITEM
     @PostMapping(value = "/found", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public Item reportFound(Authentication auth, @RequestBody Item body) {
-        Long userId = getUserIdFromAuth(auth);
+        String userId = getUserIdFromAuth(auth);
         return service.createFoundItem(userId, body);
     }
 
-    //COMPARE THE DESCRIPTION OF LOST TO FOUND
+    // COMPARE THE DESCRIPTION OF LOST TO FOUND
     @GetMapping("/{id}/ai-matches")
     public ResponseEntity<String> getAIMatches(@PathVariable Long id) {
         try {
@@ -71,79 +70,79 @@ public class ItemController {
         }
     }
 
-    //GET ITEM BY ID
+    // GET ITEM BY ID
     @GetMapping("/{id}")
     public Item getById(@PathVariable Long id) {
         return service.get(id);
     }
 
-    //UPDATE THE REPORT
+    // UPDATE THE REPORT
     @PutMapping("/{id}")
     public Item update(
             Authentication auth,
             @PathVariable Long id,
             @RequestBody Item updates
     ) {
-        Long userId = getUserIdFromAuth(auth);
+        String userId = getUserIdFromAuth(auth);
         boolean isAdmin = isAdmin(auth);
-        return service.updateWithOwnershipOrAdmin(id, userId, isAdmin ,updates);
+        return service.updateWithOwnershipOrAdmin(id, userId, isAdmin, updates);
     }
 
-    //DELETE THE REPORT THROUGH ID
+    // DELETE THE REPORT THROUGH ID
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(Authentication auth, @PathVariable Long id) {
-        Long userId = getUserIdFromAuth(auth);
+        String userId = getUserIdFromAuth(auth);
         boolean isAdmin = isAdmin(auth);
         service.deleteWithOwnershipOrAdmin(id, userId, isAdmin);
     }
 
-    //MARK IF THE PRODUCT IS RETURNED
+    // MARK IF THE PRODUCT IS RETURNED
     @PatchMapping("/{id}/mark-returned")
     public Item markReturned(Authentication auth, @PathVariable Long id) {
-        Long userId = getUserIdFromAuth(auth);
+        String userId = getUserIdFromAuth(auth);
         return service.markReturned(id, userId);
     }
 
-    //GET ALL FOUND REPORTS
+    // GET ALL FOUND REPORTS
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/found")
-    public ResponseEntity<List<Item>> getAllFoundProducts(){
+    public ResponseEntity<List<Item>> getAllFoundProducts() {
         List<Item> response = service.getAllFoundAnyStatus();
         return ResponseEntity.ok(response);
     }
 
-    //GET ALL LOST REPORTS
+    // GET ALL LOST REPORTS
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/lost")
-    public ResponseEntity<List<Item>> getAllLostProducts(){
+    public ResponseEntity<List<Item>> getAllLostProducts() {
         List<Item> response = service.getAllLostAnyStatus();
         return ResponseEntity.ok(response);
     }
 
-    //GET ALL REPORTS
+    // GET ALL REPORTS
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/getall")
-    public ResponseEntity<List<Item>> getAllProducts(){
+    public ResponseEntity<List<Item>> getAllProducts() {
         List<Item> response = service.getAllProducts();
         return ResponseEntity.ok(response);
     }
 
     // Get all reports by the current user (both lost + found)
     @GetMapping("/my")
-    public List<Item> getAllUserItems(@RequestParam Long userId) {
+    public List<Item> getAllUserItems(@RequestParam String userId) {
         return service.getAllItemsByUserId(userId);
     }
 
     // Get all lost reports by the current user
     @GetMapping("/my/lost")
-    public List<Item> getUserLostItems(@RequestParam Long userId) {
+    public List<Item> getUserLostItems(@RequestParam String userId) {
         return service.getLostItemsByUserId(userId);
     }
 
     // Get all found reports by the current user
     @GetMapping("/my/found")
-    public List<Item> getUserFoundItems(@RequestParam Long userId) {
+    public List<Item> getUserFoundItems(@RequestParam String userId) {
         return service.getFoundItemsByUserId(userId);
     }
 }

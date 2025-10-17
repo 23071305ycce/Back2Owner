@@ -44,7 +44,7 @@ public class Item {
 
     // Reporter user id
     @Column(nullable = false)
-    private Long reporterId;
+    private String reporterId;
 
     // e.g., "OPEN", "CLAIMED", "CLOSED"
     @Column(nullable = false, length = 10)
@@ -114,11 +114,11 @@ public class Item {
         this.imageUrl = imageUrl;
     }
 
-    public Long getReporterId() {
+    public String getReporterId() {
         return reporterId;
     }
 
-    public void setReporterId(Long reporterId) {
+    public void setReporterId(String reporterId) {
         this.reporterId = reporterId;
     }
 

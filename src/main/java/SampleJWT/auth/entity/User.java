@@ -13,9 +13,8 @@ import java.util.List;
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long id;
+    @Column(name = "college_id", unique = true, nullable = false)
+    private String collegeId;
 
     @Column(name = "firstname", nullable = false)
     private String firstname;
@@ -37,7 +36,8 @@ public class User implements UserDetails {
 
     public User() {}
 
-    public User(String firstname, String lastname, String email, String username, String password, String role) {
+    public User(String collegeId, String firstname, String lastname, String email, String username, String password, String role) {
+        this.collegeId = collegeId;
         this.firstname = firstname;
         this.lastname = lastname;
         this.email = email;
@@ -46,9 +46,9 @@ public class User implements UserDetails {
         this.role = role;
     }
 
-    // 🔹 Getters and Setters
-    public long getId() { return id; }
-    public void setId(long id) { this.id = id; }
+    // Getters and Setters
+    public String getCollegeId() { return collegeId; }
+    public void setCollegeId(String collegeId) { this.collegeId = collegeId; }
 
     public String getFirstname() { return firstname; }
     public void setFirstname(String firstname) { this.firstname = firstname; }
@@ -70,7 +70,7 @@ public class User implements UserDetails {
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
-    // 🔹 Spring Security methods
+    // Spring Security methods
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role));

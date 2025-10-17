@@ -14,100 +14,94 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping
 public class UserController {
 
     @Autowired
     private AuthService authService;
 
-                        //<- USER ROLE ->//
-    //User Register
+    // Register endpoint
     @PostMapping("/register")
     public ResponseEntity<String> registerUser(@RequestBody RegisterDTO registerDTO) {
-        String response = authService.registerUser(registerDTO);
-        if (response.contains("success")) {
+        try {
+            String response = authService.registerUser(registerDTO);
             return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.badRequest().body(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    //User Login
+    // Login endpoint
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody LoginDTO loginDTO) {
+    public ResponseEntity<String> loginUser(@RequestBody LoginDTO loginDTO) {
         String token = authService.loginUser(loginDTO);
-        if (token.startsWith("Invalid") || token.startsWith("Username")) {
-            return ResponseEntity.badRequest().body(token);
+        if (token.startsWith("Invalid")) {
+            return ResponseEntity.status(401).body(token);
         }
-
-        return ResponseEntity.ok()
-                .body("Login successful! Token: " + token + "\nExpires in 15 minutes");
+        return ResponseEntity.ok("Token: " + token);
     }
 
-    //if the users jwt token expires
-    @GetMapping("/session-expired")
-    public ResponseEntity<String> sessionExpired() {
-        return ResponseEntity.status(401).body("Session expired! Please login again.");
+    // Get current user info
+    @GetMapping("/me")
+    public ResponseEntity<UserDTO> getCurrentUser(Authentication auth) {
+        if (auth == null) {
+            return ResponseEntity.status(401).build();
+        }
+        String username = auth.getName();
+        UserDTO user = authService.getUserByUsername(username);
+        return ResponseEntity.ok(user);
     }
 
-    //Get user by id
+    // Get user by ID
     @GetMapping("/users/{id}")
-    public ResponseEntity<?> getUserById(@PathVariable Long id) {
-        UserDTO userDTO = authService.getUserById(id);
-        if (userDTO == null) {
+    public ResponseEntity<UserDTO> getUserById(@PathVariable String id) {
+        UserDTO user = authService.getUserById(id);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(userDTO);
+        return ResponseEntity.ok(user);
     }
 
-    //update the user deatils
+    // Update user
     @PutMapping("/users/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id,
-                                        @RequestBody UserUpdateDTO updateDTO,
-                                        Authentication authentication) {
-        if (authentication == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
+    public ResponseEntity<UserDTO> updateUser(
+            @PathVariable String id,
+            @RequestBody UserUpdateDTO dto,
+            Authentication auth
+    ) {
+        if (auth == null) {
+            return ResponseEntity.status(401).build();
         }
-        String requester = authentication.getName();
         try {
-            UserDTO updated = authService.updateUser(id, updateDTO, requester);
+            String requesterUsername = auth.getName();
+            UserDTO updated = authService.updateUser(id, dto, requesterUsername);
             return ResponseEntity.ok(updated);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        } catch (org.springframework.security.access.AccessDeniedException ex) {
-            return ResponseEntity.status(403).body("Forbidden");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
-        if (authentication == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
-        String username = authentication.getName();
-        try {
-            UserDTO userDTO = authService.getUserByUsername(username);
-            if (userDTO == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(userDTO);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Failed to fetch user");
-        }
-    }
-
-                            //<- ADMIN ROLE ->//
-    //get all user
+    // List all users (admin only)
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/users")
-    public ResponseEntity<List<UserDTO>> listUsers() {
+    public ResponseEntity<List<UserDTO>> listAllUsers() {
         List<UserDTO> users = authService.listAllUsers();
         return ResponseEntity.ok(users);
     }
 
-    //update any user's role
+    // Update user role (admin only)
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/users/{id}/role")
-    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestParam String role) {
-        authService.updateUserRole(id, role);
-        return ResponseEntity.ok("Role updated");
+    public ResponseEntity<String> updateUserRole(
+            @PathVariable String id,
+            @RequestParam String role
+    ) {
+        try {
+            authService.updateUserRole(id, role);
+            return ResponseEntity.ok("Role updated successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
